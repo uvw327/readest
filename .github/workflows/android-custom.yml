@@ -1,0 +1,115 @@
+name: Build Custom Android APK
+
+# Builds the fork's custom Android APK on top of v0.12.20. Run on a push to the
+# custom branch, or dispatch it manually from the Actions tab.
+on:
+  push:
+    branches:
+      - custom-android-v0.12.20
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # packages/foliate-js and the Tauri plugins are submodules needed by
+          # both pnpm and cargo.
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK and SDK packages
+        run: sdkmanager --install "ndk;28.2.13676358" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: android-custom-aarch64
+
+      - name: Verify custom TTS unlock is in the tree
+        run: grep -q 'isCustomTTSAllowed = (_token' apps/readest-app/src/utils/access.ts
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Copy vendored assets
+        run: pnpm --filter @readest/readest-app setup-vendors
+
+      - name: Generate a signing keystore
+        run: |
+          set -euo pipefail
+          keytool -genkeypair \
+            -keystore "$RUNNER_TEMP/readest-custom.jks" \
+            -alias readestcustom \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass readestcustom \
+            -keypass readestcustom \
+            -dname "CN=Readest Custom Build, OU=Readest, O=Readest, C=US"
+
+      - name: Initialize Android project and build APK
+        env:
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
+          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
+        run: |
+          set -euo pipefail
+          cd apps/readest-app
+          rm -rf src-tauri/gen/android
+          pnpm tauri android init
+          pnpm tauri icon ../../data/icons/readest-book.png
+          # `android init` and icon regeneration touch tracked scaffolding; keep
+          # the committed state and only keep the generated project.
+          git checkout -- .
+
+          cat > src-tauri/gen/android/keystore.properties <<EOF
+          keyAlias=readestcustom
+          password=readestcustom
+          storeFile=$RUNNER_TEMP/readest-custom.jks
+          EOF
+
+          pnpm tauri android build -t aarch64
+
+          version=$(node -p "require('./package.json').version")
+          apk="Readest_${version}_custom_arm64.apk"
+          cp src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk "$apk"
+          echo "Built $apk"
+          ls -lh "$apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: readest-custom-android-arm64
+          path: apps/readest-app/Readest_*_custom_arm64.apk
+          if-no-files-found: error
+          retention-days: 30

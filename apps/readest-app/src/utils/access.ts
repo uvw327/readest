@@ -211,10 +211,11 @@ export const isCustomTranslatorAllowed = (token: string | null | undefined): boo
 
 /**
  * Custom TTS services (the user's own OpenAI-compatible speech endpoint) are
- * premium on the same terms as custom translators: requests go straight from
- * the device, so this is a client-side gate.
+ * premium upstream on the same terms as custom translators. This fork build
+ * ungates them: the endpoint is configured and called on the device, and using
+ * it requires neither an account nor a subscription.
  */
-export const isCustomTTSAllowed = isCustomTranslatorAllowed;
+export const isCustomTTSAllowed = (_token: string | null | undefined): boolean => true;
 
 export const STORAGE_QUOTA_GRACE_BYTES = 10 * 1024 * 1024; // 10 MB grace
 
