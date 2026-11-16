@@ -18,6 +18,12 @@ export interface CustomTTSService {
   /** Comma-separated voice names, used instead of asking the service, for
    * services that can't list their voices (e.g. Gemini behind a gateway). */
   voices?: string;
+  /** Display labels for `voices` entries, keyed by the value sent to the
+   * service. Built-in services use this to show a friendly name. */
+  voiceLabels?: Record<string, string>;
+  /** Language tags for `voices` entries, keyed by the value sent to the
+   * service. Without one the picker treats the voice as multilingual. */
+  voiceLangs?: Record<string, string>;
   disabled?: boolean;
   addedAt: number;
   updatedAt: number;

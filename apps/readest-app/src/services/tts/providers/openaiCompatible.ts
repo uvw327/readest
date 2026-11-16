@@ -126,7 +126,13 @@ const parseVoiceList = (body: unknown): ListedVoice[] => {
 // lists nothing gets its standard voices.
 const fetchServiceVoices = async (service: CustomTTSService): Promise<ListedVoice[]> => {
   const typed = service.voices?.split(',').flatMap((name) => name.trim() || []);
-  if (typed?.length) return typed.map((name) => ({ name }));
+  if (typed?.length) {
+    return typed.map((name) => {
+      const label = service.voiceLabels?.[name];
+      const lang = service.voiceLangs?.[name];
+      return { name, ...(label ? { label } : {}), ...(lang ? { lang } : {}) };
+    });
+  }
   if (isMiMoService(service)) return MIMO_VOICES;
   // A timer rather than AbortSignal.timeout: tauriFetch rejects unhandled when
   // a finished request is aborted.

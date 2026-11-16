@@ -78,6 +78,7 @@ jobs:
         run: |
           pnpm test --run \
             src/__tests__/store/custom-tts-store.test.ts \
+            src/__tests__/services/tts-openai-compatible-provider.test.ts \
             src/__tests__/components/settings/CustomTTSServiceEditor.test.tsx
 
       - name: Generate a signing keystore

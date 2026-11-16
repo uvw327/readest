@@ -5,6 +5,7 @@ import { useSettingsStore } from './settingsStore';
 import { getReplicaPersistEnv } from '@/services/sync/replicaPersist';
 import { publishReplicaDelete, publishReplicaUpsert } from '@/services/sync/replicaPublish';
 import { CUSTOM_TTS_KIND } from '@/services/sync/adapters/customTTS';
+import { BUILTIN_CUSTOM_TTS_SERVICES } from '@/services/tts/builtinServices';
 
 type ServiceInput = Omit<CustomTTSService, 'id' | 'addedAt' | 'updatedAt'>;
 
@@ -147,5 +148,15 @@ export const findCustomTTSService = (id: string): CustomTTSService | undefined =
 export const getEnabledCustomTTSServices = (): CustomTTSService[] => {
   const { loaded, services } = useCustomTTSStore.getState();
   const list = loaded ? services : (useSettingsStore.getState().settings?.customTTSServices ?? []);
-  return list.filter((s) => !s.deletedAt && !s.disabled);
+  const user = list.filter((s) => !s.deletedAt && !s.disabled);
+  const endpoint = (url: string) => url.replace(/\/+$/, '');
+  const builtin = BUILTIN_CUSTOM_TTS_SERVICES.filter(
+    (b) =>
+      !user.some(
+        (s) =>
+          s.id === b.id ||
+          (endpoint(s.baseUrl) === endpoint(b.baseUrl) && s.voices === b.voices),
+      ),
+  );
+  return [...builtin, ...user];
 };

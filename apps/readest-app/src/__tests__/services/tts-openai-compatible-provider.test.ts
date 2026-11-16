@@ -93,6 +93,15 @@ describe('OpenAICompatibleSpeechProvider', () => {
     expect(init.headers.Authorization).toBe('Bearer sk-test');
   });
 
+  it('shows configured labels for manually listed voices', async () => {
+    services = [
+      service({ voices: 'girl2', voiceLabels: { girl2: '女生2' }, voiceLangs: { girl2: 'zh-CN' } }),
+    ];
+    const voices = await provider.getAllVoices();
+    expect(voices.map((v) => [v.id, v.name, v.lang])).toEqual([['s1:girl2', '女生2', 'zh-CN']]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("tells a Kokoro voice's language from its name; others read any language", async () => {
     fetchMock.mockResolvedValue(
       Response.json({ voices: ['af_heart', 'bm_george', 'zf_xiaobei', 'jm_kumo', 'nova'] }),

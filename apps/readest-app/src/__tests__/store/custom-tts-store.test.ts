@@ -8,6 +8,7 @@ vi.mock('@/services/sync/replicaPublish', () => ({ publishReplicaUpsert, publish
 
 import { getEnabledCustomTTSServices, useCustomTTSStore } from '@/store/customTTSStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { BUILTIN_CUSTOM_TTS_SERVICES } from '@/services/tts/builtinServices';
 import type { CustomTTSService } from '@/types/customTTS';
 import type { SystemSettings } from '@/types/settings';
 import type { EnvConfigType } from '@/services/environment';
@@ -101,11 +102,26 @@ describe('customTTSStore', () => {
       remote({ id: 'a' }),
       remote({ id: 'b', disabled: true }),
     ];
-    expect(getEnabledCustomTTSServices().map((s) => s.id)).toEqual(['a']);
+    expect(getEnabledCustomTTSServices().map((s) => s.id)).toEqual([
+      ...BUILTIN_CUSTOM_TTS_SERVICES.map((s) => s.id),
+      'a',
+    ]);
     useCustomTTSStore.setState({
       loaded: true,
       services: [remote({ id: 'c' }), remote({ id: 'd', deletedAt: 5 })],
     });
-    expect(getEnabledCustomTTSServices().map((s) => s.id)).toEqual(['c']);
+    expect(getEnabledCustomTTSServices().map((s) => s.id)).toEqual([
+      ...BUILTIN_CUSTOM_TTS_SERVICES.map((s) => s.id),
+      'c',
+    ]);
+  });
+
+  it('does not duplicate the built-in service with an equivalent user entry', () => {
+    const builtin = BUILTIN_CUSTOM_TTS_SERVICES[0]!;
+    useCustomTTSStore.setState({ loaded: true, services: [] });
+    useSettingsStore.getState().settings.customTTSServices = [
+      remote({ id: 'mine', baseUrl: `${builtin.baseUrl}/`, voices: builtin.voices }),
+    ];
+    expect(getEnabledCustomTTSServices().map((s) => s.id)).toEqual(['mine']);
   });
 });
