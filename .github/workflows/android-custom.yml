@@ -81,18 +81,32 @@ jobs:
             src/__tests__/services/tts-openai-compatible-provider.test.ts \
             src/__tests__/components/settings/CustomTTSServiceEditor.test.tsx
 
-      - name: Generate a signing keystore
+      - name: Prepare signing keystore
+        env:
+          ANDROID_KEY_BASE64: ${{ secrets.ANDROID_KEY_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          keytool -genkeypair \
-            -keystore "$RUNNER_TEMP/readest-custom.jks" \
-            -alias readestcustom \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass readestcustom \
-            -keypass readestcustom \
-            -dname "CN=Readest Custom Build, OU=Readest, O=Readest, C=US"
+          if [ -n "${ANDROID_KEY_BASE64:-}" ]; then
+            printf '%s' "$ANDROID_KEY_BASE64" | base64 -d > "$RUNNER_TEMP/readest-custom.jks"
+            echo "KEY_ALIAS=$ANDROID_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=$ANDROID_KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "Using the repository signing key"
+          else
+            keytool -genkeypair \
+              -keystore "$RUNNER_TEMP/readest-custom.jks" \
+              -alias readestcustom \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass readestcustom \
+              -keypass readestcustom \
+              -dname "CN=Readest Custom Build, OU=Readest, O=Readest, C=US"
+            echo "KEY_ALIAS=readestcustom" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=readestcustom" >> "$GITHUB_ENV"
+            echo "::warning::No ANDROID_KEY_BASE64 secret; using an ephemeral signing key"
+          fi
 
       - name: Initialize Android project and build APK
         env:
@@ -109,8 +123,8 @@ jobs:
           git checkout -- .
 
           cat > src-tauri/gen/android/keystore.properties <<EOF
-          keyAlias=readestcustom
-          password=readestcustom
+          keyAlias=$KEY_ALIAS
+          password=$KEY_PASSWORD
           storeFile=$RUNNER_TEMP/readest-custom.jks
           EOF
 
