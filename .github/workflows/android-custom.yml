@@ -53,12 +53,12 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android
+          targets: aarch64-linux-android,x86_64-linux-android
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
         with:
-          key: android-custom-aarch64
+          key: android-custom-aarch64-x86_64
 
       - name: Verify custom TTS unlock is in the tree
         run: grep -q 'isCustomTTSAllowed = (_token' apps/readest-app/src/utils/access.ts
@@ -68,6 +68,17 @@ jobs:
 
       - name: Copy vendored assets
         run: pnpm --filter @readest/readest-app setup-vendors
+
+      - name: Lint TypeScript and Biome
+        working-directory: apps/readest-app
+        run: pnpm lint
+
+      - name: Run custom TTS regression tests
+        working-directory: apps/readest-app
+        run: |
+          pnpm test --run \
+            src/__tests__/store/custom-tts-store.test.ts \
+            src/__tests__/components/settings/CustomTTSServiceEditor.test.tsx
 
       - name: Generate a signing keystore
         run: |
@@ -102,18 +113,19 @@ jobs:
           storeFile=$RUNNER_TEMP/readest-custom.jks
           EOF
 
-          pnpm tauri android build -t aarch64
+          pnpm tauri android build -t aarch64 -t x86_64
 
           version=$(node -p "require('./package.json').version")
-          apk="Readest_${version}_custom_arm64.apk"
+          apk="Readest_${version}_custom.apk"
           cp src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk "$apk"
           echo "Built $apk"
           ls -lh "$apk"
+          unzip -l "$apk" | grep -E 'lib/(arm64-v8a|x86_64)/' | head
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: readest-custom-android-arm64
-          path: apps/readest-app/Readest_*_custom_arm64.apk
+          name: readest-custom-android
+          path: apps/readest-app/Readest_*_custom.apk
           if-no-files-found: error
           retention-days: 30

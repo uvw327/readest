@@ -53,6 +53,26 @@ describe('customTTSStore', () => {
     expect(useCustomTTSStore.getState().services[0]!.deletedAt).toBeDefined();
   });
 
+  it('adds a service even when the WebView has no crypto.randomUUID', () => {
+    const cryptoObj = globalThis.crypto as unknown as {
+      randomUUID?: () => string;
+    };
+    const original = cryptoObj.randomUUID;
+    Object.defineProperty(cryptoObj, 'randomUUID', { value: undefined, configurable: true });
+    try {
+      const added = useCustomTTSStore.getState().addService(input);
+      expect(added.id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      );
+    } finally {
+      Object.defineProperty(cryptoObj, 'randomUUID', {
+        value: original,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
+
   it('persists live services only', async () => {
     const store = useCustomTTSStore.getState();
     const kept = store.addService(input);

@@ -114,11 +114,17 @@ const CustomTTSServiceEditor: React.FC<CustomTTSServiceEditorProps> = ({ service
   };
 
   const handleSave = () => {
-    const store = useCustomTTSStore.getState();
-    if (service) store.updateService(service.id, cleaned());
-    else store.addService(cleaned());
-    void store.saveCustomTTSServices(envConfig);
-    onBack();
+    try {
+      const store = useCustomTTSStore.getState();
+      if (service) store.updateService(service.id, cleaned());
+      else store.addService(cleaned());
+      void store.saveCustomTTSServices(envConfig);
+      onBack();
+    } catch (err) {
+      // Older Android WebViews can throw here (e.g. missing crypto.randomUUID).
+      // Surface it instead of leaving the Save button looking dead.
+      setError(err instanceof Error ? err.message : String(err));
+    }
   };
 
   const handleDelete = () => {

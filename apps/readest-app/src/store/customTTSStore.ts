@@ -16,6 +16,35 @@ const replace = (list: CustomTTSService[], service: CustomTTSService) =>
 const markDeleted = (list: CustomTTSService[], id: string) =>
   list.map((s) => (s.id === id ? { ...s, deletedAt: Date.now() } : s));
 
+/**
+ * A v4 UUID that also works where WebView predates `crypto.randomUUID`
+ * (Chrome 92). Android 9 images and some vendor WebViews still ship older
+ * engines, and this runs synchronously on the Save path: without a fallback
+ * the editor silently fails to save.
+ */
+const newServiceId = (): string => {
+  const webCrypto = globalThis.crypto;
+  if (typeof webCrypto?.randomUUID === 'function') {
+    return webCrypto.randomUUID();
+  }
+  const bytes = new Uint8Array(16);
+  if (typeof webCrypto?.getRandomValues === 'function') {
+    webCrypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  bytes[6] = (bytes[6]! & 0x0f) | 0x40;
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20),
+  ].join('-');
+};
+
 const persist = () => {
   const env = getReplicaPersistEnv();
   if (env) void useCustomTTSStore.getState().saveCustomTTSServices(env);
@@ -45,7 +74,7 @@ export const useCustomTTSStore = create<CustomTTSState>((set, get) => ({
     const now = Date.now();
     const service: CustomTTSService = {
       ...input,
-      id: crypto.randomUUID(),
+      id: newServiceId(),
       addedAt: now,
       updatedAt: now,
       reincarnation: Math.random().toString(36).slice(2),

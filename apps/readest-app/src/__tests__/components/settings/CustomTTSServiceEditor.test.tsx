@@ -30,7 +30,10 @@ const service: CustomTTSService = {
   updatedAt: 1,
 };
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 describe('CustomTTSServiceEditor', () => {
   it('saves a cleared API key as empty, so other devices drop it too', () => {
@@ -54,6 +57,18 @@ describe('CustomTTSServiceEditor', () => {
       's1',
       expect.objectContaining({ responseFormat: 'mp3', voices: '' }),
     );
+  });
+
+  it('keeps the editor open and shows the error when saving throws', () => {
+    store.addService.mockImplementationOnce(() => {
+      throw new Error('randomUUID is not a function');
+    });
+    const onBack = vi.fn();
+    render(<CustomTTSServiceEditor onBack={onBack} />);
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Local TTS' } });
+    fireEvent.click(screen.getByText('Save'));
+    expect(screen.getByText('randomUUID is not a function')).toBeTruthy();
+    expect(onBack).not.toHaveBeenCalled();
   });
 
   it('offers no format for MiMo, which always answers in MP3', () => {
