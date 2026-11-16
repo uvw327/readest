@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.ActionMode
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.WindowManager
 import android.webkit.WebView
 import android.net.Uri
 import android.util.Log
@@ -268,6 +269,20 @@ class MainActivity : TauriActivity(), KeyDownInterceptor {
             }
         }
         return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Reading is a foreground activity: keep the display awake while the
+        // activity is resumed, and release it in onPause so backgrounding the
+        // app (or leaving the reader for another app) still lets the screen
+        // sleep normally.
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
+    override fun onPause() {
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        super.onPause()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
