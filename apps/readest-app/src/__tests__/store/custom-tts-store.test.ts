@@ -118,7 +118,6 @@ describe('customTTSStore', () => {
 
   it('does not duplicate the built-in service with an equivalent user entry', () => {
     const builtin = BUILTIN_CUSTOM_TTS_SERVICES[0]!;
-    useCustomTTSStore.setState({ loaded: true, services: [] });
     useSettingsStore.getState().settings.customTTSServices = [
       remote({ id: 'mine', baseUrl: `${builtin.baseUrl}/`, voices: builtin.voices }),
     ];
